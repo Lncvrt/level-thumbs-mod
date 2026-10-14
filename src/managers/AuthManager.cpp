@@ -10,6 +10,9 @@
 #include <Geode/utils/web.hpp>
 #include <Geode/loader/SettingV3.hpp>
 
+// Custom Argon server (no trailing slash, no /v1 - the Argon library appends v1/... itself)
+static constexpr std::string_view CUSTOM_ARGON_URL = "https://xps-argon.lncvrt.xyz";
+
 using namespace geode::prelude;
 
 bool AuthManager::isLoggedIn() {
@@ -340,7 +343,11 @@ AuthManager::LoginFuture AuthManager::login() {
             co_return Err("Incompatible Geometry Dash server URL: <cr>{}</c> (expected <cy>{}</c>)", data->serverUrl, m_serverMetadata->gdBaseUrl);
         }
 
-        GEODE_CO_UNWRAP(argon::setServerUrl("https://xps-argon.lncvrt.xyz/v1"));
+        // GDPS: use the server-provided Argon host if present, otherwise the custom fallback
+        auto const& host = m_serverMetadata->argonBaseUrl;
+        GEODE_CO_UNWRAP(argon::setServerUrl(host.empty() ? std::string(CUSTOM_ARGON_URL) : host));
+    } else {
+        GEODE_CO_UNWRAP(argon::setServerUrl(std::string(CUSTOM_ARGON_URL)));
     }
 
     auto argonRes = co_await argon::startAuth(data.value());
